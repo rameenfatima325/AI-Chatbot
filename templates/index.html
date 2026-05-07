@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="app-wrapper">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-top">
+            <div class="sidebar-header">
+                <div class="logo-mark">✦</div>
+                <h1 class="logo-text">Chat<span>Bot</span></h1>
+            </div>
+
+            <button class="new-chat-btn" onclick="newChat()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Chat
+            </button>
+
+            <div class="section-label">Personality</div>
+
+            <div class="personality-grid">
+                <button class="personality-btn active" data-key="friendly" onclick="selectPersonality(this)">
+                    <span class="p-icon">😊</span>
+                    <span class="p-name">Friendly</span>
+                </button>
+                <button class="personality-btn" data-key="professional" onclick="selectPersonality(this)">
+                    <span class="p-icon">💼</span>
+                    <span class="p-name">Professional</span>
+                </button>
+                <button class="personality-btn" data-key="funny" onclick="selectPersonality(this)">
+                    <span class="p-icon">😂</span>
+                    <span class="p-name">Funny</span>
+                </button>
+                <button class="personality-btn" data-key="sarcastic" onclick="selectPersonality(this)">
+                    <span class="p-icon">😏</span>
+                    <span class="p-name">Sarcastic</span>
+                </button>
+                <button class="personality-btn" data-key="custom" onclick="selectPersonality(this)">
+                    <span class="p-icon">✏️</span>
+                    <span class="p-name">Custom</span>
+                </button>
+            </div>
+
+            <div class="custom-box" id="custom-box">
+                <label class="section-label">Define Personality</label>
+                <textarea
+                    id="custom-personality"
+                    placeholder="e.g. A medieval wizard who speaks in riddles and ancient verse..."
+                    onclick="event.stopPropagation()"
+                    onmousedown="event.stopPropagation()"
+                ></textarea>
+                <button class="apply-custom-btn" onclick="applyCustomPersonality()">Apply ✓</button>
+            </div>
+        </div>
+
+        <div class="sidebar-middle">
+            <div class="section-label">Chat History</div>
+            <div class="chat-history" id="chat-history">
+                <div class="no-history">No chats yet</div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            Powered by Gemini 2.5 Flash
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <main class="chat-area">
+
+        <div class="chat-header">
+            <button class="menu-btn" onclick="toggleSidebar()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            </button>
+            <div class="header-center">
+                <div class="active-personality" id="active-personality-label">
+                    <span class="dot"></span> Friendly Mode
+                </div>
+                <div class="chat-title" id="chat-title">What's on your mind?</div>
+            </div>
+            <button class="new-chat-btn-header" onclick="newChat()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="welcome-message">
+                <div class="welcome-icon">✦</div>
+                <h2>How can I help you today?</h2>
+                <p>Select a personality, then start chatting below.</p>
+                <div class="suggestion-chips">
+                    <button class="chip" onclick="useSuggestion(this)">Explain quantum computing simply</button>
+                    <button class="chip" onclick="useSuggestion(this)">Write a short poem about rain</button>
+                    <button class="chip" onclick="useSuggestion(this)">Help me brainstorm business ideas</button>
+                    <button class="chip" onclick="useSuggestion(this)">What should I cook for dinner?</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <div class="input-row">
+                    <textarea
+                        id="message-input"
+                        placeholder="Message ChatBot AI..."
+                        rows="1"
+                        onkeydown="handleKey(event)"
+                        oninput="autoResize(this)"
+                    ></textarea>
+                    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                </div>
+                <div class="input-hint">Press Enter to send · Shift+Enter for new line</div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+    let allChats = JSON.parse(localStorage.getItem('chatbot_chats') || '[]');
+    let activeChatId = null;
+    let selectedPersonalityKey = 'friendly';
+    let customPersonalityText = '';
+    let isLoading = false;
+
+    const personalityLabels = {
+        friendly: '😊 Friendly Mode',
+        professional: '💼 Professional Mode',
+        funny: '😂 Funny Mode',
+        sarcastic: '😏 Sarcastic Mode',
+        custom: '✏️ Custom Mode'
+    };
+
+    renderChatHistory();
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebar-overlay').classList.toggle('visible');
+    }
+
+    function selectPersonality(btn) {
+        document.querySelectorAll('.personality-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedPersonalityKey = btn.dataset.key;
+
+        document.getElementById('active-personality-label').innerHTML =
+            `<span class="dot"></span> ${personalityLabels[selectedPersonalityKey]}`;
+
+        const customBox = document.getElementById('custom-box');
+        if (selectedPersonalityKey === 'custom') {
+            customBox.classList.add('visible');
+            setTimeout(() => document.getElementById('custom-personality').focus(), 100);
+        } else {
+            customBox.classList.remove('visible');
+        }
+    }
+
+    function applyCustomPersonality() {
+        const val = document.getElementById('custom-personality').value.trim();
+        if (!val) {
+            document.getElementById('custom-personality').classList.add('error');
+            setTimeout(() => document.getElementById('custom-personality').classList.remove('error'), 600);
+            return;
+        }
+        customPersonalityText = val;
+        document.getElementById('custom-box').classList.add('applied');
+        setTimeout(() => document.getElementById('custom-box').classList.remove('applied'), 1200);
+    }
+
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2);
+    }
+
+    function saveChats() {
+        localStorage.setItem('chatbot_chats', JSON.stringify(allChats));
+    }
+
+    function renderChatHistory() {
+        const container = document.getElementById('chat-history');
+        if (allChats.length === 0) {
+            container.innerHTML = '<div class="no-history">No chats yet</div>';
+            return;
+        }
+
+        const today = new Date();
+        const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+        const groups = { 'Today': [], 'Yesterday': [], 'Older': [] };
+
+        allChats.forEach(chat => {
+            const d = new Date(chat.createdAt);
+            if (isSameDay(d, today)) groups['Today'].push(chat);
+            else if (isSameDay(d, yesterday)) groups['Yesterday'].push(chat);
+            else groups['Older'].push(chat);
+        });
+
+        let html = '';
+        for (const [label, chats] of Object.entries(groups)) {
+            if (!chats.length) continue;
+            html += `<div class="history-group-label">${label}</div>`;
+            chats.slice().reverse().forEach(chat => {
+                const isActive = chat.id === activeChatId;
+                html += `
+                <div class="history-item ${isActive ? 'active' : ''}" data-id="${chat.id}" onclick="loadChat('${chat.id}')">
+                    <span class="history-icon">${personalityEmoji(chat.personality)}</span>
+                    <span class="history-title">${escHtml(chat.title)}</span>
+                    <button class="history-delete" onclick="deleteChat(event, '${chat.id}')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>`;
+            });
+        }
+        container.innerHTML = html;
+    }
+
+    function isSameDay(a, b) {
+        return a.getFullYear() === b.getFullYear() &&
+               a.getMonth() === b.getMonth() &&
+               a.getDate() === b.getDate();
+    }
+
+    function personalityEmoji(key) {
+        const m = { friendly: '😊', professional: '💼', funny: '😂', sarcastic: '😏', custom: '✏️' };
+        return m[key] || '💬';
+    }
+
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function loadChat(id) {
+        const chat = allChats.find(c => c.id === id);
+        if (!chat) return;
+
+        activeChatId = id;
+        selectedPersonalityKey = chat.personality;
+        customPersonalityText = chat.customPersonality || '';
+
+        document.querySelectorAll('.personality-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.key === selectedPersonalityKey);
+        });
+        document.getElementById('active-personality-label').innerHTML =
+            `<span class="dot"></span> ${personalityLabels[selectedPersonalityKey] || '✏️ Custom Mode'}`;
+
+        if (selectedPersonalityKey === 'custom') {
+            document.getElementById('custom-box').classList.add('visible');
+            document.getElementById('custom-personality').value = customPersonalityText;
+        } else {
+            document.getElementById('custom-box').classList.remove('visible');
+        }
+
+        const container = document.getElementById('chat-messages');
+        container.innerHTML = '';
+        chat.messages.forEach(m => appendMessage(m.role, m.text, false));
+
+        document.getElementById('chat-title').textContent = chat.title;
+        renderChatHistory();
+
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebar-overlay').classList.remove('visible');
+    }
+
+    function deleteChat(e, id) {
+        e.stopPropagation();
+        allChats = allChats.filter(c => c.id !== id);
+        saveChats();
+        if (activeChatId === id) {
+            activeChatId = null;
+            newChat();
+        } else {
+            renderChatHistory();
+        }
+    }
+
+    function newChat() {
+        activeChatId = null;
+        document.getElementById('chat-messages').innerHTML = `
+            <div class="welcome-message">
+                <div class="welcome-icon">✦</div>
+                <h2>How can I help you today?</h2>
+                <p>Select a personality, then start chatting below.</p>
+                <div class="suggestion-chips">
+                    <button class="chip" onclick="useSuggestion(this)">Explain quantum computing simply</button>
+                    <button class="chip" onclick="useSuggestion(this)">Write a short poem about rain</button>
+                    <button class="chip" onclick="useSuggestion(this)">Help me brainstorm business ideas</button>
+                    <button class="chip" onclick="useSuggestion(this)">What should I cook for dinner?</button>
+                </div>
+            </div>`;
+        document.getElementById('chat-title').textContent = "What's on your mind?";
+        renderChatHistory();
+    }
+
+    function useSuggestion(btn) {
+        document.getElementById('message-input').value = btn.textContent;
+        sendMessage();
+    }
+
+    function handleKey(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    function autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+    }
+
+    function appendMessage(role, text, animate = true) {
+        const container = document.getElementById('chat-messages');
+        const welcome = container.querySelector('.welcome-message');
+        if (welcome) welcome.remove();
+
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', role === 'user' ? 'user-message' : 'bot-message');
+        if (!animate) msgDiv.style.animation = 'none';
+
+        if (role === 'user') {
+            msgDiv.innerHTML = `<div class="bubble user-bubble">${escHtml(text)}</div>`;
+        } else {
+            msgDiv.innerHTML = `
+                <div class="bot-avatar">✦</div>
+                <div class="bubble bot-bubble">${escHtml(text)}</div>`;
+        }
+
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function appendTypingIndicator() {
+        const container = document.getElementById('chat-messages');
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('message', 'bot-message');
+        msgDiv.id = 'typing-indicator';
+        msgDiv.innerHTML = `
+            <div class="bot-avatar">✦</div>
+            <div class="bubble bot-bubble typing-bubble"><span></span><span></span><span></span></div>`;
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const el = document.getElementById('typing-indicator');
+        if (el) el.remove();
+    }
+
+    async function sendMessage() {
+        if (isLoading) return;
+
+        const input = document.getElementById('message-input');
+        const message = input.value.trim();
+        if (!message) return;
+
+        if (selectedPersonalityKey === 'custom') {
+            const cp = document.getElementById('custom-personality').value.trim();
+            if (!cp) {
+                document.getElementById('custom-personality').classList.add('error');
+                document.getElementById('custom-box').classList.add('visible');
+                setTimeout(() => document.getElementById('custom-personality').classList.remove('error'), 800);
+                return;
+            }
+            customPersonalityText = cp;
+        }
+
+        isLoading = true;
+        document.getElementById('send-btn').disabled = true;
+        input.value = '';
+        input.style.height = 'auto';
+
+        appendMessage('user', message);
+        appendTypingIndicator();
+
+        let currentChat = activeChatId ? allChats.find(c => c.id === activeChatId) : null;
+        const history = currentChat ? currentChat.messages.map(m => ({
+            user: m.role === 'user' ? m.text : undefined,
+            bot: m.role === 'bot' ? m.text : undefined
+        })).reduce((acc, m, i, arr) => {
+            if (m.user && arr[i+1]?.bot) acc.push({ user: m.user, bot: arr[i+1].bot });
+            return acc;
+        }, []) : [];
+
+        try {
+            const res = await fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message,
+                    personality_key: selectedPersonalityKey,
+                    custom_personality: customPersonalityText,
+                    history
+                })
+            });
+
+            const data = await res.json();
+            removeTypingIndicator();
+
+            const reply = data.reply || 'Sorry, I could not get a response.';
+            appendMessage('bot', reply);
+
+            if (!activeChatId) {
+                const newChatObj = {
+                    id: generateId(),
+                    title: message.length > 40 ? message.slice(0, 40) + '…' : message,
+                    personality: selectedPersonalityKey,
+                    customPersonality: customPersonalityText,
+                    createdAt: new Date().toISOString(),
+                    messages: [
+                        { role: 'user', text: message },
+                        { role: 'bot', text: reply }
+                    ]
+                };
+                allChats.push(newChatObj);
+                activeChatId = newChatObj.id;
+                document.getElementById('chat-title').textContent = newChatObj.title;
+            } else {
+                currentChat.messages.push({ role: 'user', text: message });
+                currentChat.messages.push({ role: 'bot', text: reply });
+            }
+
+            saveChats();
+            renderChatHistory();
+
+        } catch (err) {
+            removeTypingIndicator();
+            appendMessage('bot', 'Network error. Please check your connection and try again.');
+        }
+
+        isLoading = false;
+        document.getElementById('send-btn').disabled = false;
+        input.focus();
+    }
+</script>
+</body>
+</html>
