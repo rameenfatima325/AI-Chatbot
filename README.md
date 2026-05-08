@@ -23,8 +23,8 @@ A sleek, dark-themed AI chatbot built with Flask and Google Gemini 2.5 Flash. Sw
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-cd YOUR_REPO_NAME
+git clone https://github.com/rameenfatima325/AI-Chatbot.git
+cd AI-Chatbot
 ```
 
 ### 2. Create a virtual environment (recommended)
